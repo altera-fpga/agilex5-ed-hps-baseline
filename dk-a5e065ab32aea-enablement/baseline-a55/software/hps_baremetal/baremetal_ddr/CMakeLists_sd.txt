@@ -6,8 +6,7 @@ cmake_minimum_required(VERSION 3.14...3.28)
 # With build.sh, produces baremetal.elf, a bootable SD image
 # (baremetal.hps.sd.img) and the JTAG-programmed SD FSBL SOF (fsbl_sd.sof):
 #   ATF BL2 (SD) -> BL31 -> application.
-# For QSPI boot see CMakeLists_qspi.txt; build.sh stages the selected file as
-# CMakeLists.txt via BOOT_SOURCE_TYPE.
+# build.sh stages this file into the build dir as CMakeLists.txt.
 # ---------------------------------------------------------------------------
 
 # main.c lives in the example source tree; build.sh stages this file into the
