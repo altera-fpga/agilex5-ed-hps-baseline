@@ -53,7 +53,7 @@ ELF still builds).
 1. Enter the baseline-a76 folder
 
 ```bash
-cd TOP_DIR/dk-a5e065bb32aes1-enablement/baseline-a76
+cd TOP_DIR/dk-a5e065ab32aea-enablement/baseline-a76
 ```
 
 2. Build the baremetal application (SD boot)
