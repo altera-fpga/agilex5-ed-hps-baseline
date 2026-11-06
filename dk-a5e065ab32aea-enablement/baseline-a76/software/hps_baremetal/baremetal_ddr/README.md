@@ -15,41 +15,26 @@ application is linked to execute from DDR. At boot, ATF (BL31) loads the
 application into DDR and hands off control to it, rather than the application
 running directly from the HPS on-chip RAM.
 
-# Choosing a boot source (QSPI or SD)
+# Boot source (SD)
 
-The example is provided as two clean, single-boot-source references so you can
-start from the one that matches your board's secondary boot source:
+This 26.3 example supports **SD card boot only**. QSPI packaging is deferred to
+a later release.
 
-| Boot source | CMake file          | Make target                              | Produces                                          |
-| ----------- | ------------------- | ---------------------------------------- | ------------------------------------------------- |
-| QSPI        | `CMakeLists_qspi.txt` | `software-hps_baremetal_qspi-build-sw` | `baremetal.elf`, `baremetal.hps.jic`              |
-| SD          | `CMakeLists_sd.txt`   | `software-hps_baremetal_sd-build-sw`   | `baremetal.elf`, `baremetal.hps.sd.img`, `fsbl_sd.sof` |
+| Boot source | CMake file        | Make target                        | Produces                                                    |
+| ----------- | ----------------- | ---------------------------------- | ----------------------------------------------------------- |
+| SD          | `CMakeLists_sd.txt` | `software-hps_baremetal_sd-build-sw` | `baremetal.elf`, `baremetal.hps.sd.img`, `fsbl_sd.sof` |
 
-`build.sh` is the shared driver. It selects the boot source from its first
-argument (or the `BOOT_SOURCE_TYPE` environment variable). There is no
-`CMakeLists.txt` in the tree: `build.sh` stages the matching example
-(`CMakeLists_qspi.txt` or `CMakeLists_sd.txt`) into the build directory as
-`CMakeLists.txt` and configures from there, so each boot source stays a clean,
-standalone file:
+`build.sh` stages `CMakeLists_sd.txt` into the build directory as
+`CMakeLists.txt` and configures from there:
 
 ```bash
-./build.sh qspi   # QSPI JIC
-./build.sh sd     # SD card image + SD FSBL SOF
+./build.sh        # SD (default)
+./build.sh sd     # same
 ```
 
-(With no argument it defaults to `qspi`.)
-
 The ATF build machinery lives in the baremetal repo (`cmake/bm_boot.cmake`) and
-provides the `atf-bl2-bl31-qspi` / `atf-bl2-bl31-sd` / `atf-fiptool` targets that
-each `CMakeLists_*.txt` wires into a `fip.bin`.
-
-## QSPI
-
-The JIC packages ATF (BL2 embedded into the SOF as the FSBL, BL31 in the FIP)
-together with the application so the board can boot the baremetal program from
-QSPI flash (boot chain: ATF BL2 -> ATF BL31 -> `baremetal.bin`). `build.sh`
-drives `quartus_pfg` to embed `bl2.hex` into the SOF and assemble the JIC in a
-single pass using the board PFG (`qspi_flash_image_agilex5_boot.pfg`).
+provides the `atf-bl2-bl31-sd` / `atf-fiptool` targets that `CMakeLists_sd.txt`
+wires into a `fip.bin`.
 
 ## SD
 
@@ -68,32 +53,28 @@ ELF still builds).
 1. Enter the baseline-a76 folder
 
 ```bash
-cd TOP_DIR/dk-a5e065bb32aes1-enablement/baseline-a76
+cd TOP_DIR/dk-a5e065ab32aea-enablement/baseline-a76
 ```
 
-2. Build the baremetal application for your chosen boot source
+2. Build the baremetal application (SD boot)
 
 ```bash
-make software-hps_baremetal_qspi-build-sw     # QSPI
-# or
-make software-hps_baremetal_sd-build-sw       # SD
+make software-hps_baremetal_sd-build-sw
 ```
 
-The artifacts (`baremetal.elf` plus `baremetal.hps.jic` for QSPI, or
-`baremetal.hps.sd.img` and `fsbl_sd.sof` for SD) appear under
+The artifacts (`baremetal.elf`, plus `baremetal.hps.sd.img` and `fsbl_sd.sof`
+when SD packaging succeeds) appear under
 `software/hps_baremetal/baremetal_ddr/` when building via the Make target (it
-copies them from the per-boot-source `build_qspi/` or `build_sd/` directory).
-Each target depends on the FPGA SOF (`output_files/<revision>.sof`), so the FPGA
-is compiled first.
+copies them from the `build_sd/` directory). The target depends on the FPGA SOF
+(`output_files/<revision>.sof`), so the FPGA is compiled first.
 
-(Note: you can also run `./software/hps_baremetal/baremetal_ddr/build.sh qspi`
-or `... sd` directly. Override the SOF with
-`SOF_PATH=/path/to.sof ./build.sh qspi`.)
+(Note: you can also run `./software/hps_baremetal/baremetal_ddr/build.sh`
+directly. Override the SOF with `SOF_PATH=/path/to.sof ./build.sh`.)
 
 3. (Optional) Install the binary + boot image into the enablement output tree
 
 ```bash
-make software-hps_baremetal_qspi-install-sw   # or ..._sd-install-sw
+make software-hps_baremetal_sd-install-sw
 ```
 
 This step is only needed for the full baseline enablement/packaging flow; it
@@ -103,7 +84,7 @@ collect software binaries. Skip it if you only need the artifacts locally.
 4. Clean the build artifacts
 
 ```bash
-make software-hps_baremetal_qspi-clean-sw     # or ..._sd-clean-sw
+make software-hps_baremetal_sd-clean-sw
 ```
 
 # Toolchain
@@ -119,7 +100,7 @@ before building:
 
 ```bash
 export TOOLCHAIN_BIN=/path/to/<toolchain>/bin
-make software-hps_baremetal_qspi-build-sw
+make software-hps_baremetal_sd-build-sw
 ```
 
 The cross-compile setup lives in the baremetal repo

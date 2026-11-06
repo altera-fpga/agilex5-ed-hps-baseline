@@ -55,6 +55,7 @@ Refer to the <a href=\"https://altera-fpga.github.io/latest/embedded-designs/agi
 | Project | Description |
 |---------|-------------|
 | [HPS debug](software/hps_debug/README.md) | HPS content wipe utility for debug |
+| [HPS baremetal (DDR)](software/hps_baremetal/baremetal_ddr/README.md) | Bare-metal "Hello World" example (DDR build) |
 
 
 ## Design overview

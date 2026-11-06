@@ -56,7 +56,6 @@ Refer to the <a href=\"https://altera-fpga.github.io/latest/embedded-designs/agi
 |---------|-------------|
 | [Yocto Linux](software/yocto_linux/README.md) | Linux BSP build, boot, and Simics bring-up |
 | [HPS debug](software/hps_debug/README.md) | HPS content wipe utility for debug |
-| [HPS baremetal (DDR)](software/hps_baremetal/baremetal_ddr/README.md) | Bare-metal "Hello World" example (DDR build) |
 
 
 ## Design overview

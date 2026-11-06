@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.14...3.28)
 
 # ---------------------------------------------------------------------------
-# HPS Baremetal Hello World - QSPI boot example (DDR)
+# HPS Baremetal Hello World - SD boot example (DDR)
 #
-# With build.sh, produces baremetal.elf and a bootable QSPI JIC:
-#   ATF BL2 (FSBL, embedded in the SOF) -> BL31 (in fip.bin) -> application.
-# For SD boot see CMakeLists_sd.txt; build.sh stages the selected file as
-# CMakeLists.txt via BOOT_SOURCE_TYPE.
+# With build.sh, produces baremetal.elf, a bootable SD image
+# (baremetal.hps.sd.img) and the JTAG-programmed SD FSBL SOF (fsbl_sd.sof):
+#   ATF BL2 (SD) -> BL31 -> application.
+# build.sh stages this file into the build dir as CMakeLists.txt.
 # ---------------------------------------------------------------------------
 
 # main.c lives in the example source tree; build.sh stages this file into the
@@ -83,53 +83,56 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
 )
 
 # ---------------------------------------------------------------------------
-# Boot image (QSPI JIC)
-# ATF machinery lives in the baremetal repo (cmake/bm_boot.cmake); here we wire
-# bl2/bl31 + fiptool into fip.bin, and build.sh runs quartus_pfg for the JIC.
+# SD boot image (FIP)
+# Uses the SD-variant ATF (atf-bl2-bl31-sd, MMC_DEVICE_TYPE=SD) to build a
+# fip.bin. build.sh builds the generate-sd-fip target, then assembles the SD
+# card image and the SD FSBL SOF with the baremetal repo tools + quartus_pfg.
 # ---------------------------------------------------------------------------
 include("${baremetal_SOURCE_DIR}/cmake/bm_boot.cmake")
 
-set(FPGA_BINARIES_DIR "${CMAKE_BINARY_DIR}/fpga_binaries")
+set(SD_BINARIES_DIR "${CMAKE_BINARY_DIR}/sd_binaries")
 
-# Copy ATF QSPI bl2.bin/bl31.bin into fpga_binaries. Kept as two single-output
-# commands so parallel (-j) consumers don't collide on a shared copy step.
+# Copy ATF SD bl2.bin/bl31.bin into sd_binaries (two single-output commands so
+# parallel (-j) consumers don't collide on a shared copy step).
 add_custom_command(
-    OUTPUT "${FPGA_BINARIES_DIR}/bl2.bin"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${FPGA_BINARIES_DIR}"
+    OUTPUT "${SD_BINARIES_DIR}/bl2.bin"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SD_BINARIES_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${QSPI_ARTIFACTS_DIR}/bl2.bin"  "${FPGA_BINARIES_DIR}/bl2.bin"
-    DEPENDS atf-bl2-bl31-qspi
-    COMMENT "Copying ATF bl2.bin to fpga_binaries"
+            "${SD_ARTIFACTS_DIR}/bl2.bin"  "${SD_BINARIES_DIR}/bl2.bin"
+    DEPENDS atf-bl2-bl31-sd
+    COMMENT "Copying SD ATF bl2.bin to sd_binaries"
 )
 add_custom_command(
-    OUTPUT "${FPGA_BINARIES_DIR}/bl31.bin"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${FPGA_BINARIES_DIR}"
+    OUTPUT "${SD_BINARIES_DIR}/bl31.bin"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SD_BINARIES_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${QSPI_ARTIFACTS_DIR}/bl31.bin" "${FPGA_BINARIES_DIR}/bl31.bin"
-    DEPENDS atf-bl2-bl31-qspi
-    COMMENT "Copying ATF bl31.bin to fpga_binaries"
+            "${SD_ARTIFACTS_DIR}/bl31.bin" "${SD_BINARIES_DIR}/bl31.bin"
+    DEPENDS atf-bl2-bl31-sd
+    COMMENT "Copying SD ATF bl31.bin to sd_binaries"
 )
 
-# Convert bl2.bin -> bl2.hex (embedded into the FPGA SOF as the FSBL).
+# Convert the SD bl2.bin -> bl2.hex (for the SD FSBL SOF, assembled in build.sh).
 add_custom_command(
-    OUTPUT "${FPGA_BINARIES_DIR}/bl2.hex"
+    OUTPUT "${SD_BINARIES_DIR}/bl2.hex"
     COMMAND ${CMAKE_OBJCOPY}
             -I binary -O ihex --change-addresses 0x0
-            "${FPGA_BINARIES_DIR}/bl2.bin"
-            "${FPGA_BINARIES_DIR}/bl2.hex"
-    DEPENDS "${FPGA_BINARIES_DIR}/bl2.bin"
-    COMMENT "Generating bl2.hex"
+            "${SD_BINARIES_DIR}/bl2.bin"
+            "${SD_BINARIES_DIR}/bl2.hex"
+    DEPENDS "${SD_BINARIES_DIR}/bl2.bin"
+    COMMENT "Generating SD bl2.hex"
 )
-add_custom_target(generate-bl2-hex ALL DEPENDS "${FPGA_BINARIES_DIR}/bl2.hex")
 
-# Package BL31 + the application .bin into a Firmware Image Package (fip.bin).
+# Package SD BL31 + the application .bin into fip.bin for SD boot.
 add_custom_command(
-    OUTPUT "${FPGA_BINARIES_DIR}/fip.bin"
+    OUTPUT "${SD_BINARIES_DIR}/fip.bin"
     COMMAND "${CMAKE_BINARY_DIR}/fiptool" create
-            --soc-fw "${FPGA_BINARIES_DIR}/bl31.bin"
+            --soc-fw "${SD_BINARIES_DIR}/bl31.bin"
             --nt-fw  "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.bin"
-            "${FPGA_BINARIES_DIR}/fip.bin"
-    DEPENDS "${FPGA_BINARIES_DIR}/bl31.bin" atf-fiptool ${PROJECT_NAME}.elf
-    COMMENT "Generating fip.bin"
+            "${SD_BINARIES_DIR}/fip.bin"
+    DEPENDS "${SD_BINARIES_DIR}/bl31.bin" atf-fiptool ${PROJECT_NAME}.elf
+    COMMENT "Generating SD fip.bin"
 )
-add_custom_target(generate-fip ALL DEPENDS "${FPGA_BINARIES_DIR}/fip.bin")
+
+# Aggregate target built explicitly by build.sh (produces the SD fip + bl2.hex).
+add_custom_target(generate-sd-fip
+    DEPENDS "${SD_BINARIES_DIR}/fip.bin" "${SD_BINARIES_DIR}/bl2.hex")

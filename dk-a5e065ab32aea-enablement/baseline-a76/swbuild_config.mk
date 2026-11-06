@@ -2,4 +2,5 @@
 
 # Define the list of software projects to build
 SW_PROJECT_LIST += \
-hps_debug
+hps_debug \
+hps_baremetal_sd
